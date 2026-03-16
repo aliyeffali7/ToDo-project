@@ -1,0 +1,581 @@
+/* ─────────────────────────────────────────────
+   Reset & tokens
+───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #f1f5f9;
+  --surface:  #ffffff;
+  --surface2: #f8fafc;
+  --border:   #e2e8f0;
+  --border2:  #cbd5e1;
+  --text1:    #0f172a;
+  --text2:    #475569;
+  --text3:    #94a3b8;
+  --blue:     #2563eb;
+  --blue-hi:  #1d4ed8;
+  --r:        12px;
+  --sh:       0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
+  --sh2:      0 4px 16px rgba(0,0,0,.1);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text1);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+button { font-family: inherit; cursor: pointer; }
+
+/* ─────────────────────────────────────────────
+   App shell
+───────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ─────────────────────────────────────────────
+   Header
+───────────────────────────────────────────── */
+.header {
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.brand-icon { color: var(--blue); }
+.brand-name {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text1);
+  letter-spacing: -.025em;
+}
+
+/* Mobile: tap to open calendar */
+.mobile-cal-btn {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: .8rem;
+  color: var(--text2);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color .15s, background .15s;
+}
+.mobile-cal-btn:hover {
+  border-color: var(--border2);
+  background: var(--bg);
+}
+
+.desktop-date {
+  margin-left: auto;
+  font-size: .78rem;
+  color: var(--text3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ─────────────────────────────────────────────
+   Rollover banner
+───────────────────────────────────────────── */
+.rollover-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding: 9px 20px;
+  font-size: .8rem;
+  color: #92400e;
+  font-weight: 500;
+  animation: slideDown .25s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rollover-icon {
+  color: #d97706;
+  flex-shrink: 0;
+  animation: spin 1s ease forwards;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.rollover-banner > span { flex: 1; }
+
+/* ─────────────────────────────────────────────
+   Mobile calendar panel
+───────────────────────────────────────────── */
+.mobile-panel {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  box-shadow: var(--sh2);
+  position: sticky;
+  top: 56px;
+  z-index: 100;
+}
+.mobile-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text1);
+  margin-bottom: 14px;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 5px;
+  border-radius: 7px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  transition: background .12s, color .12s;
+}
+.icon-btn:hover { background: var(--bg); color: var(--text1); }
+
+/* ─────────────────────────────────────────────
+   Main layout
+───────────────────────────────────────────── */
+.layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────
+   Sidebar
+───────────────────────────────────────────── */
+.sidebar {
+  width: 272px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+
+/* ─────────────────────────────────────────────
+   Calendar
+───────────────────────────────────────────── */
+.cal { user-select: none; }
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.cal-title {
+  font-size: .83rem;
+  font-weight: 700;
+  color: var(--text1);
+}
+.cal-arrow {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px 8px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  transition: background .12s, border-color .12s;
+}
+.cal-arrow:hover { background: var(--bg); border-color: var(--border2); }
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.cal-dn {
+  text-align: center;
+  font-size: .62rem;
+  font-weight: 700;
+  color: var(--text3);
+  padding: 6px 0;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  font-size: .78rem;
+  color: var(--text2);
+  font-weight: 500;
+  position: relative;
+  transition: background .12s, color .12s;
+}
+.cal-day:hover              { background: var(--bg); color: var(--text1); }
+.cal-day.now                { color: var(--blue); font-weight: 700; }
+.cal-day.sel                { background: var(--blue); color: #fff; font-weight: 700; }
+.cal-day.sel:hover          { background: var(--blue-hi); }
+
+.cal-dot {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--blue);
+  display: block;
+  font-style: normal;
+}
+.cal-day.sel .cal-dot { background: rgba(255,255,255,.75); }
+
+/* ─────────────────────────────────────────────
+   Stats card
+───────────────────────────────────────────── */
+.stats-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.stat {
+  flex: 1;
+  padding: 13px 8px;
+  text-align: center;
+}
+.stat-div {
+  width: 1px;
+  background: var(--border);
+  margin: 10px 0;
+}
+.stat-num {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text1);
+  line-height: 1;
+}
+.stat-lbl {
+  display: block;
+  font-size: .62rem;
+  color: var(--text3);
+  margin-top: 5px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-weight: 600;
+}
+
+/* ─────────────────────────────────────────────
+   Board
+───────────────────────────────────────────── */
+.board {
+  flex: 1;
+  padding: 28px 28px 40px;
+  overflow: auto;
+  min-width: 0;
+}
+
+.board-head { margin-bottom: 22px; }
+
+.board-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text1);
+  letter-spacing: -.025em;
+  margin-bottom: 10px;
+}
+
+.prog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.prog-track {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.prog-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 99px;
+  transition: width .45s cubic-bezier(.4,0,.2,1);
+}
+.prog-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────
+   Columns grid
+───────────────────────────────────────────── */
+.cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ─────────────────────────────────────────────
+   Column
+───────────────────────────────────────────── */
+.col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--sh);
+  overflow: hidden;
+}
+
+.col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.col-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.col-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.col-title {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text1);
+}
+.col-badge {
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+
+.col-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 80px;
+  flex: 1;
+}
+.col-empty {
+  text-align: center;
+  color: var(--text3);
+  font-size: .78rem;
+  padding: 24px 0;
+  font-weight: 500;
+}
+
+/* ─────────────────────────────────────────────
+   Task card
+───────────────────────────────────────────── */
+.task-card {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color .12s, box-shadow .12s;
+  animation: fi .15s ease;
+}
+.task-card:hover {
+  border-color: var(--border2);
+  box-shadow: var(--sh);
+}
+
+@keyframes fi {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.task-bar {
+  width: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.task-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+.task-text {
+  font-size: .82rem;
+  color: var(--text1);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.rollover-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .65rem;
+  font-weight: 600;
+  color: #d97706;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  padding: 1px 5px;
+  width: fit-content;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity .12s;
+}
+.task-card:hover .task-actions { opacity: 1; }
+
+.taction {
+  background: none;
+  border: none;
+  border-radius: 5px;
+  padding: 5px;
+  color: var(--text3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .12s, color .12s;
+}
+.taction:hover      { background: var(--border); color: var(--text1); }
+.taction.del:hover  { background: #fef2f2; color: #ef4444; }
+
+/* ─────────────────────────────────────────────
+   Add task input row
+───────────────────────────────────────────── */
+.col-add {
+  display: flex;
+  gap: 7px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2);
+}
+.col-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 11px;
+  font-size: .8rem;
+  color: var(--text1);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  font-family: inherit;
+}
+.col-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+}
+.col-input::placeholder { color: var(--text3); }
+
+.col-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: filter .12s, transform .1s;
+}
+.col-btn:hover  { filter: brightness(1.08); }
+.col-btn:active { transform: scale(.92); }
+
+/* ─────────────────────────────────────────────
+   Responsive — tablet
+───────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .sidebar { width: 240px; }
+  .board   { padding: 20px; }
+  .cols    { gap: 12px; }
+}
+
+/* ─────────────────────────────────────────────
+   Responsive — mobile
+───────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .sidebar        { display: none; }
+  .mobile-cal-btn { display: flex; }
+  .desktop-date   { display: none; }
+
+  .board { padding: 14px 12px 32px; }
+
+  .board-head { margin-bottom: 16px; }
+  .board-title { font-size: .95rem; }
+
+  /* Stack columns vertically on mobile */
+  .cols {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Show task actions always on mobile (no hover) */
+  .task-actions { opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────
+   Scrollbar styling (webkit)
+───────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: var(--border2); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
