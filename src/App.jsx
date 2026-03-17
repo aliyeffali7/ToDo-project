@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
-import { CalendarDays, CheckSquare, X, RefreshCw } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { CalendarDays, CheckSquare, X, RefreshCw, LogOut } from 'lucide-react'
+import { supabase } from './lib/supabase'
+import Auth from './components/Auth'
 import Calendar from './components/Calendar'
 import Column from './components/Column'
 
@@ -19,10 +21,8 @@ const toKey = d =>
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
 
-const load = () => {
-  try { return JSON.parse(localStorage.getItem('taskboard_v1') || '{}') }
-  catch { return {} }
-}
+// Supabase returns rolled_from (snake_case) → map to rolledFrom for TaskCard
+const mapTask = t => ({ ...t, rolledFrom: t.rolled_from })
 
 const fmtFull = s => {
   const [y, m, d] = s.split('-').map(Number)
@@ -31,103 +31,126 @@ const fmtFull = s => {
   })
 }
 
-// Returns { data, count } — moves all unfinished tasks from past days to today.
-// Completed (done) tasks stay on their original date as a record.
-function applyRollover(data, todayKey) {
-  const updated = JSON.parse(JSON.stringify(data))
-  let count = 0
-
-  Object.keys(updated).forEach(dateKey => {
-    if (dateKey >= todayKey) return                        // skip today & future
-    const pending = [
-      ...(updated[dateKey]?.todo       || []),
-      ...(updated[dateKey]?.inprogress || []),
-    ]
-    if (pending.length === 0) return
-
-    // Stamp each task so we know it was rolled over
-    const stamped = pending.map(t => ({
-      ...t,
-      rolledFrom: t.rolledFrom ?? dateKey,                // keep original origin date
-    }))
-
-    if (!updated[todayKey]) updated[todayKey] = { todo: [], inprogress: [], done: [] }
-    updated[todayKey].todo = [...(updated[todayKey].todo || []), ...stamped]
-
-    // Clear the old date's unfinished columns (keep done as history)
-    updated[dateKey].todo       = []
-    updated[dateKey].inprogress = []
-    count += pending.length
-  })
-
-  return { data: updated, count }
-}
-
 export default function App() {
   const todayKey = toKey(new Date())
-  const [sel, setSel]           = useState(todayKey)
-  const [data, setData]         = useState(load)
-  const [calOpen, setCalOpen]   = useState(false)
-  const [rolloverMsg, setRolloverMsg] = useState('')  // banner text
 
-  // Run rollover once on mount
+  const [session, setSession]         = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [tasks, setTasks]             = useState([])        // flat array from Supabase
+  const [sel, setSel]                 = useState(todayKey)
+  const [calOpen, setCalOpen]         = useState(false)
+  const [rolloverMsg, setRolloverMsg] = useState('')
+
+  // ── Auth state ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const raw = load()
-    const { data: rolled, count } = applyRollover(raw, todayKey)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setAuthLoading(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSession(session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // ── Load + rollover when signed in ──────────────────────────────────────
+  const loadTasks = useCallback(async () => {
+    if (!session) return
+    const { data } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: true })
+    if (data) setTasks(data.map(mapTask))
+  }, [session])
+
+  useEffect(() => {
+    if (!session) return
+    runRolloverThenLoad()
+  }, [session]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function runRolloverThenLoad() {
+    const count = await rollover()
+    await loadTasks()
     if (count > 0) {
-      setData(rolled)
       setRolloverMsg(`${count} unfinished task${count > 1 ? 's' : ''} carried over from previous days`)
       const t = setTimeout(() => setRolloverMsg(''), 5000)
       return () => clearTimeout(t)
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
-  useEffect(() => {
-    localStorage.setItem('taskboard_v1', JSON.stringify(data))
-  }, [data])
+  async function rollover() {
+    // Find all incomplete tasks from past dates
+    const { data } = await supabase
+      .from('tasks')
+      .select('id, date, rolled_from')
+      .eq('user_id', session.user.id)
+      .lt('date', todayKey)
+      .neq('col', 'done')
 
-  const tasks = col => data[sel]?.[col] || []
+    if (!data?.length) return 0
 
-  function addTask(col, text) {
+    // Move them to today, preserving their original rolled_from date
+    await Promise.all(
+      data.map(t =>
+        supabase.from('tasks').update({
+          date:        todayKey,
+          rolled_from: t.rolled_from ?? t.date,   // keep original origin
+        }).eq('id', t.id)
+      )
+    )
+
+    return data.length
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+    setTasks([])
+    setSession(null)
+  }
+
+  // ── CRUD ─────────────────────────────────────────────────────────────────
+  async function addTask(col, text) {
     if (!text.trim()) return
-    setData(p => ({
-      ...p,
-      [sel]: {
-        todo: [], inprogress: [], done: [],
-        ...p[sel],
-        [col]: [...(p[sel]?.[col] || []), { id: uid(), text: text.trim() }],
-      },
-    }))
+    const newTask = {
+      id:      uid(),
+      user_id: session.user.id,
+      date:    sel,
+      col,
+      text:    text.trim(),
+    }
+    setTasks(p => [...p, mapTask(newTask)])                   // optimistic
+    const { error } = await supabase.from('tasks').insert(newTask)
+    if (error) loadTasks()                                    // rollback
   }
 
-  function deleteTask(col, id) {
-    setData(p => ({
-      ...p,
-      [sel]: { ...p[sel], [col]: (p[sel]?.[col] || []).filter(t => t.id !== id) },
-    }))
+  async function deleteTask(id) {
+    setTasks(p => p.filter(t => t.id !== id))                // optimistic
+    const { error } = await supabase.from('tasks').delete().eq('id', id)
+    if (error) loadTasks()                                    // rollback
   }
 
-  function moveTask(fromCol, id, toCol) {
-    setData(p => {
-      const task = (p[sel]?.[fromCol] || []).find(t => t.id === id)
-      if (!task) return p
-      return {
-        ...p,
-        [sel]: {
-          ...p[sel],
-          [fromCol]: (p[sel][fromCol] || []).filter(t => t.id !== id),
-          [toCol]:   [...(p[sel]?.[toCol] || []), task],
-        },
-      }
-    })
+  async function moveTask(id, toCol) {
+    setTasks(p => p.map(t => t.id === id ? { ...t, col: toCol } : t))   // optimistic
+    const { error } = await supabase.from('tasks').update({ col: toCol }).eq('id', id)
+    if (error) loadTasks()                                    // rollback
   }
 
-  const allTasks    = COLS.flatMap(c => tasks(c))
-  const doneTasks   = tasks('done').length
-  const progress    = allTasks.length ? Math.round((doneTasks / allTasks.length) * 100) : 0
-  const datesWithTasks = Object.keys(data).filter(k =>
-    COLS.some(c => (data[k]?.[c] || []).length > 0)
+  // ── Derived ──────────────────────────────────────────────────────────────
+  const dayTasks = col => tasks.filter(t => t.date === sel && t.col === col)
+  const allTasks  = COLS.flatMap(c => dayTasks(c))
+  const doneTasks = dayTasks('done').length
+  const progress  = allTasks.length ? Math.round((doneTasks / allTasks.length) * 100) : 0
+  const datesWithTasks = [...new Set(tasks.map(t => t.date))]
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (authLoading) return (
+    <div className="splash">
+      <div className="splash-spinner" />
+    </div>
   )
+
+  if (!session) return <Auth />
 
   return (
     <div className="app">
@@ -139,13 +162,17 @@ export default function App() {
           <span className="brand-name">TaskBoard</span>
         </div>
 
-        {/* Mobile: date button that opens calendar */}
         <button className="mobile-cal-btn" onClick={() => setCalOpen(o => !o)}>
           <CalendarDays size={15} />
           <span>{fmtFull(sel)}</span>
         </button>
 
-        <span className="desktop-date">{fmtFull(todayKey)}</span>
+        <div className="header-right">
+          <span className="desktop-date">{fmtFull(todayKey)}</span>
+          <button className="signout-btn" onClick={signOut} title="Sign out">
+            <LogOut size={15} />
+          </button>
+        </div>
       </header>
 
       {/* ── Rollover banner ── */}
@@ -197,7 +224,7 @@ export default function App() {
               <div className="stat-div" />
               <div className="stat">
                 <span className="stat-num" style={{ color: '#f59e0b' }}>
-                  {tasks('inprogress').length}
+                  {dayTasks('inprogress').length}
                 </span>
                 <span className="stat-lbl">Active</span>
               </div>
@@ -210,6 +237,13 @@ export default function App() {
               </div>
             </div>
           )}
+
+          <div className="sidebar-user">
+            <span className="sidebar-email" title={session.user.email}>
+              {session.user.email}
+            </span>
+            <button className="signout-link" onClick={signOut}>Sign out</button>
+          </div>
         </aside>
 
         {/* ── Board ── */}
@@ -232,11 +266,11 @@ export default function App() {
                 key={col}
                 label={COL_CONFIG[col].label}
                 color={COL_CONFIG[col].color}
-                tasks={tasks(col)}
+                tasks={dayTasks(col)}
                 onAdd={t => addTask(col, t)}
-                onDelete={id => deleteTask(col, id)}
-                onMoveLeft={MOVE_LEFT[col]  ? id => moveTask(col, id, MOVE_LEFT[col])  : null}
-                onMoveRight={MOVE_RIGHT[col] ? id => moveTask(col, id, MOVE_RIGHT[col]) : null}
+                onDelete={id => deleteTask(id)}
+                onMoveLeft={MOVE_LEFT[col]   ? id => moveTask(id, MOVE_LEFT[col])  : null}
+                onMoveRight={MOVE_RIGHT[col] ? id => moveTask(id, MOVE_RIGHT[col]) : null}
               />
             ))}
           </div>
