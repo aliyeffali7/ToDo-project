@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import TaskCard from './TaskCard'
 
-export default function Column({ label, color, tasks, onAdd, onDelete, onMoveLeft, onMoveRight }) {
+const PRIORITIES = ['first', 'later', 'much later']
+
+export default function Column({ label, color, tasks, onAdd, onDelete, onMoveLeft, onMoveRight, showPriority }) {
   const [val, setVal] = useState('')
+  const [priority, setPriority] = useState('later')
 
   function submit() {
     if (!val.trim()) return
-    onAdd(val.trim())
+    onAdd(val.trim(), priority)
     setVal('')
   }
 
@@ -40,21 +43,37 @@ export default function Column({ label, color, tasks, onAdd, onDelete, onMoveLef
       </div>
 
       <div className="col-add">
-        <input
-          className="col-input"
-          value={val}
-          onChange={e => setVal(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && submit()}
-          placeholder="Add a task…"
-        />
-        <button
-          className="col-btn"
-          style={{ background: color }}
-          onClick={submit}
-          aria-label="Add task"
-        >
-          <Plus size={15} />
-        </button>
+        {showPriority && (
+          <div className="priority-row">
+            {PRIORITIES.map(p => (
+              <button
+                key={p}
+                type="button"
+                className={`priority-btn priority-${p.replace(/ /g, '-')}${priority === p ? ' active' : ''}`}
+                onClick={() => setPriority(p)}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="col-add-row">
+          <input
+            className="col-input"
+            value={val}
+            onChange={e => setVal(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submit()}
+            placeholder="Add a task…"
+          />
+          <button
+            className="col-btn"
+            style={{ background: color }}
+            onClick={submit}
+            aria-label="Add task"
+          >
+            <Plus size={15} />
+          </button>
+        </div>
       </div>
     </div>
   )

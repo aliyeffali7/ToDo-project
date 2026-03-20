@@ -110,14 +110,15 @@ export default function App() {
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
-  async function addTask(col, text) {
+  async function addTask(col, text, priority = 'later') {
     if (!text.trim()) return
     const newTask = {
-      id:      uid(),
-      user_id: session.user.id,
-      date:    sel,
+      id:       uid(),
+      user_id:  session.user.id,
+      date:     sel,
       col,
-      text:    text.trim(),
+      text:     text.trim(),
+      priority,
     }
     setTasks(p => [...p, mapTask(newTask)])                   // optimistic
     const { error } = await supabase.from('tasks').insert(newTask)
@@ -267,7 +268,8 @@ export default function App() {
                 label={COL_CONFIG[col].label}
                 color={COL_CONFIG[col].color}
                 tasks={dayTasks(col)}
-                onAdd={t => addTask(col, t)}
+                onAdd={(t, p) => addTask(col, t, p)}
+                showPriority={col === 'todo'}
                 onDelete={id => deleteTask(id)}
                 onMoveLeft={MOVE_LEFT[col]   ? id => moveTask(id, MOVE_LEFT[col])  : null}
                 onMoveRight={MOVE_RIGHT[col] ? id => moveTask(id, MOVE_RIGHT[col]) : null}

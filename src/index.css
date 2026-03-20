@@ -450,7 +450,7 @@ button { font-family: inherit; cursor: pointer; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   padding: 8px 10px;
   min-width: 0;
 }
@@ -503,11 +503,60 @@ button { font-family: inherit; cursor: pointer; }
 ───────────────────────────────────────────── */
 .col-add {
   display: flex;
+  flex-direction: column;
   gap: 7px;
   padding: 10px 12px;
   border-top: 1px solid var(--border);
   background: var(--surface2);
 }
+.col-add-row {
+  display: flex;
+  gap: 7px;
+}
+
+/* ─────────────────────────────────────────────
+   Priority selector
+───────────────────────────────────────────── */
+.priority-row {
+  display: flex;
+  gap: 5px;
+}
+.priority-btn {
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 3px 9px;
+  font-size: .68rem;
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--text3);
+  font-family: inherit;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.priority-btn.priority-first.active,
+.priority-btn.priority-first:hover       { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+.priority-btn.priority-later.active,
+.priority-btn.priority-later:hover       { background: #eff6ff; border-color: #bfdbfe; color: #2563eb; }
+.priority-btn.priority-much-later.active,
+.priority-btn.priority-much-later:hover  { background: #f1f5f9; border-color: #cbd5e1; color: #64748b; }
+
+/* ─────────────────────────────────────────────
+   Priority tags on task cards
+───────────────────────────────────────────── */
+.task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.priority-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: .65rem;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.priority-tag.priority-first      { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; }
+.priority-tag.priority-much-later { color: #64748b; background: #f1f5f9; border: 1px solid #e2e8f0; }
 .col-input {
   flex: 1;
   background: var(--surface);
