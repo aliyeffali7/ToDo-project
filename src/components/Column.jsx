@@ -2,15 +2,12 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import TaskCard from './TaskCard'
 
-const PRIORITIES = ['first', 'later', 'much later']
-
-export default function Column({ label, color, tasks, onAdd, onDelete, onMoveLeft, onMoveRight, showPriority }) {
+export default function Column({ label, color, tasks, onAdd, onDelete, onMoveLeft, onMoveRight }) {
   const [val, setVal] = useState('')
-  const [priority, setPriority] = useState('later')
 
   function submit() {
     if (!val.trim()) return
-    onAdd(val.trim(), priority)
+    onAdd(val.trim())
     setVal('')
   }
 
@@ -43,20 +40,6 @@ export default function Column({ label, color, tasks, onAdd, onDelete, onMoveLef
       </div>
 
       <div className="col-add">
-        {showPriority && (
-          <div className="priority-row">
-            {PRIORITIES.map(p => (
-              <button
-                key={p}
-                type="button"
-                className={`priority-btn priority-${p.replace(/ /g, '-')}${priority === p ? ' active' : ''}`}
-                onClick={() => setPriority(p)}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="col-add-row">
           <input
             className="col-input"

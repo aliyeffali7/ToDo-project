@@ -13,11 +13,6 @@ export default function TaskCard({ task, color, onDelete, onMoveLeft, onMoveRigh
       <div className="task-body">
         <span className="task-text">{task.text}</span>
         <div className="task-tags">
-          {task.priority && task.priority !== 'later' && (
-            <span className={`priority-tag priority-${task.priority.replace(/ /g, '-')}`}>
-              {task.priority}
-            </span>
-          )}
           {task.rolledFrom && (
             <span className="rollover-tag" title={`Originally from ${fmtShort(task.rolledFrom)}`}>
               <RotateCcw size={10} />

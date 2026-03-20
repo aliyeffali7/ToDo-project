@@ -110,29 +110,18 @@ export default function App() {
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────
-  async function addTask(col, text, priority = 'later') {
+  async function addTask(col, text) {
     if (!text.trim()) return
     const newTask = {
-      id:       uid(),
-      user_id:  session.user.id,
-      date:     sel,
+      id:      uid(),
+      user_id: session.user.id,
+      date:    sel,
       col,
-      text:     text.trim(),
-      priority,
+      text:    text.trim(),
     }
     setTasks(p => [...p, mapTask(newTask)])                   // optimistic
-    let { error } = await supabase.from('tasks').insert(newTask)
-    if (error) {
-      // If priority column doesn't exist yet, retry without it
-      if (error.code === '42703' || error.message?.includes('priority')) {
-        const { id, user_id, date, col: taskCol, text: taskText } = newTask
-        const fallback = { id, user_id, date, col: taskCol, text: taskText }
-        const { error: err2 } = await supabase.from('tasks').insert(fallback)
-        if (err2) loadTasks()                                 // rollback
-      } else {
-        loadTasks()                                           // rollback
-      }
-    }
+    const { error } = await supabase.from('tasks').insert(newTask)
+    if (error) loadTasks()                                    // rollback
   }
 
   async function deleteTask(id) {
@@ -278,8 +267,7 @@ export default function App() {
                 label={COL_CONFIG[col].label}
                 color={COL_CONFIG[col].color}
                 tasks={dayTasks(col)}
-                onAdd={(t, p) => addTask(col, t, p)}
-                showPriority={col === 'todo'}
+                onAdd={t => addTask(col, t)}
                 onDelete={id => deleteTask(id)}
                 onMoveLeft={MOVE_LEFT[col]   ? id => moveTask(id, MOVE_LEFT[col])  : null}
                 onMoveRight={MOVE_RIGHT[col] ? id => moveTask(id, MOVE_RIGHT[col]) : null}
