@@ -121,8 +121,18 @@ export default function App() {
       priority,
     }
     setTasks(p => [...p, mapTask(newTask)])                   // optimistic
-    const { error } = await supabase.from('tasks').insert(newTask)
-    if (error) loadTasks()                                    // rollback
+    let { error } = await supabase.from('tasks').insert(newTask)
+    if (error) {
+      // If priority column doesn't exist yet, retry without it
+      if (error.code === '42703' || error.message?.includes('priority')) {
+        const { id, user_id, date, col: taskCol, text: taskText } = newTask
+        const fallback = { id, user_id, date, col: taskCol, text: taskText }
+        const { error: err2 } = await supabase.from('tasks').insert(fallback)
+        if (err2) loadTasks()                                 // rollback
+      } else {
+        loadTasks()                                           // rollback
+      }
+    }
   }
 
   async function deleteTask(id) {
