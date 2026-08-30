@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { CalendarDays, CheckSquare, X, RefreshCw, LogOut } from 'lucide-react'
+import { CalendarDays, CheckSquare, X, RefreshCw, LogOut, Wallet } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import Auth from './components/Auth'
 import Calendar from './components/Calendar'
 import Column from './components/Column'
+import Money from './components/Money'
 
 const COLS = ['todo', 'inprogress', 'done']
 
@@ -36,6 +37,7 @@ export default function App() {
 
   const [session, setSession]         = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [view, setView]               = useState('tasks')   // 'tasks' | 'money'
   const [tasks, setTasks]             = useState([])        // flat array from Supabase
   const [sel, setSel]                 = useState(todayKey)
   const [calOpen, setCalOpen]         = useState(false)
@@ -152,6 +154,14 @@ export default function App() {
 
   if (!session) return <Auth />
 
+  if (view === 'money') return (
+    <Money
+      session={session}
+      onSignOut={signOut}
+      onSwitchToTasks={() => setView('tasks')}
+    />
+  )
+
   return (
     <div className="app">
 
@@ -169,6 +179,10 @@ export default function App() {
 
         <div className="header-right">
           <span className="desktop-date">{fmtFull(todayKey)}</span>
+          <button className="view-toggle-btn" onClick={() => setView('money')} title="Pul idarəsi">
+            <Wallet size={14} />
+            <span>Pul idarəsi</span>
+          </button>
           <button className="signout-btn" onClick={signOut} title="Sign out">
             <LogOut size={15} />
           </button>
