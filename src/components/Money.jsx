@@ -6,6 +6,7 @@ import MoneyColumn from './MoneyColumn'
 import {
   toKey, mapTx, weekRange, inWeek, inMonth, sum,
   fmtAmount, fmtRange, fmtMonth, fmtFull, CATEGORIES,
+  balanceThrough, balanceBefore,
 } from '../lib/money'
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
@@ -96,6 +97,11 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   const dayIn  = sum(dayTx('in'))
   const dayOut = sum(dayTx('out'))
 
+  // Running balance — previous days carry over
+  const openingBalance = balanceBefore(tx, sel)          // seçilmiş günün açılış balansı
+  const closingBalance = openingBalance + dayIn - dayOut // həmin günün sonu
+  const currentBalance = balanceThrough(tx, todayKey)    // bu günə qədər ümumi balans
+
   // Monthly expense breakdown by category
   const catBreakdown = CATEGORIES.out
     .map(c => ({ cat: c, total: sum(monthTx.filter(t => t.type === 'out' && t.category === c)) }))
@@ -111,6 +117,15 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
         <div className="header-brand">
           <Wallet size={20} className="brand-icon" />
           <span className="brand-name">Pul idarəsi</span>
+          <span
+            className="balance-pill"
+            style={{ color: currentBalance >= 0 ? '#0f766e' : '#b91c1c',
+                     background: currentBalance >= 0 ? '#f0fdfa' : '#fef2f2',
+                     borderColor: currentBalance >= 0 ? '#99f6e4' : '#fecaca' }}
+            title="Cari balans"
+          >
+            {fmtAmount(currentBalance)}
+          </span>
         </div>
 
         <button className="mobile-cal-btn" onClick={() => setCalOpen(o => !o)}>
@@ -161,6 +176,17 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
 
         {/* ── Desktop sidebar ── */}
         <aside className="sidebar">
+          <div className="balance-card">
+            <span className="balance-lbl">Cari balans</span>
+            <span
+              className="balance-num"
+              style={{ color: currentBalance >= 0 ? '#0f172a' : '#ef4444' }}
+            >
+              {fmtAmount(currentBalance)}
+            </span>
+            <span className="balance-hint">bütün gələn − çıxan</span>
+          </div>
+
           <Calendar
             selected={sel}
             onSelect={setSel}
@@ -200,10 +226,22 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
         <main className="board">
           <div className="board-head">
             <h2 className="board-title">{fmtFull(sel)}</h2>
-            <div className="prog-row">
-              <span className="prog-label" style={{ color: '#10b981' }}>+{fmtAmount(dayIn)}</span>
-              <span className="prog-label" style={{ color: '#ef4444' }}>−{fmtAmount(dayOut)}</span>
-              <span className="prog-label">Gün qalığı: {fmtAmount(dayIn - dayOut)}</span>
+            <div className="day-balance">
+              <span className="db-item">
+                <span className="db-lbl">Əvvəldən qalıq</span>
+                <span className="db-val">{fmtAmount(openingBalance)}</span>
+              </span>
+              <span className="db-op" style={{ color: '#10b981' }}>+ {fmtAmount(dayIn)}</span>
+              <span className="db-op" style={{ color: '#ef4444' }}>− {fmtAmount(dayOut)}</span>
+              <span className="db-item db-final">
+                <span className="db-lbl">Gün sonu balans</span>
+                <span
+                  className="db-val"
+                  style={{ color: closingBalance >= 0 ? '#0f172a' : '#ef4444' }}
+                >
+                  {fmtAmount(closingBalance)}
+                </span>
+              </span>
             </div>
           </div>
 

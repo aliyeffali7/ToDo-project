@@ -31,6 +31,16 @@ export const inMonth = (dateKey, refKey) => dateKey.slice(0, 7) === refKey.slice
 
 export const sum = arr => arr.reduce((n, t) => n + Number(t.amount), 0)
 
+const signed = t => (t.type === 'in' ? 1 : -1) * Number(t.amount)
+
+// Running balance: cumulative (gələn − çıxan) over every transaction on or before dateKey
+export const balanceThrough = (txs, dateKey) =>
+  txs.reduce((n, t) => (t.date > dateKey ? n : n + signed(t)), 0)
+
+// Balance carried into dateKey — everything strictly before it (previous day's closing balance)
+export const balanceBefore = (txs, dateKey) =>
+  txs.reduce((n, t) => (t.date < dateKey ? n + signed(t) : n), 0)
+
 export const fmtAmount = n =>
   Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ₼'
 

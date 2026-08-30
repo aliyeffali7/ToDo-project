@@ -869,6 +869,73 @@ button { font-family: inherit; cursor: pointer; }
   grid-template-columns: repeat(2, 1fr);
 }
 
+/* Running balance */
+.balance-pill {
+  font-size: .8rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.balance-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.balance-lbl {
+  font-size: .62rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-weight: 700;
+}
+.balance-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+}
+.balance-hint {
+  font-size: .64rem;
+  color: var(--text3);
+}
+
+.day-balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.db-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.db-lbl {
+  font-size: .6rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+.db-val {
+  font-size: .9rem;
+  font-weight: 700;
+  color: var(--text1);
+}
+.db-final .db-val { font-size: 1rem; }
+.db-op {
+  font-size: .78rem;
+  font-weight: 600;
+}
+
 .cat-select {
   appearance: auto;
   cursor: pointer;
