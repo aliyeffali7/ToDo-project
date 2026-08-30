@@ -44,14 +44,17 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   const [tx, setTx]       = useState([])
   const [sel, setSel]     = useState(todayKey)
   const [calOpen, setCalOpen] = useState(false)
+  const [err, setErr]    = useState('')
 
   const loadTx = useCallback(async () => {
     if (!session) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: true })
+    if (error) { setErr(error.message); return }
+    setErr('')
     if (data) setTx(data.map(mapTx))
   }, [session])
 
@@ -69,13 +72,13 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
     }
     setTx(p => [...p, mapTx(row)])                       // optimistic
     const { error } = await supabase.from('transactions').insert(row)
-    if (error) loadTx()                                  // rollback
+    if (error) { setErr(error.message); loadTx() }       // rollback
   }
 
   async function deleteTx(id) {
     setTx(p => p.filter(t => t.id !== id))               // optimistic
     const { error } = await supabase.from('transactions').delete().eq('id', id)
-    if (error) loadTx()                                  // rollback
+    if (error) { setErr(error.message); loadTx() }       // rollback
   }
 
   // ── Derived ────────────────────────────────────────────────────────────
@@ -126,6 +129,15 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
           </button>
         </div>
       </header>
+
+      {err && (
+        <div className="rollover-banner" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#b91c1c' }}>
+          <span>Baza xətası: {err} — Supabase-də `transactions` cədvəli qurulub?</span>
+          <button className="icon-btn" onClick={() => setErr('')}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* ── Mobile calendar panel ── */}
       {calOpen && (
