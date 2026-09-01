@@ -6,7 +6,7 @@ import MoneyColumn from './MoneyColumn'
 import {
   toKey, mapTx, weekRange, inWeek, inMonth, sum,
   fmtAmount, fmtRange, fmtMonth, fmtFull, CATEGORIES,
-  balanceThrough, balanceBefore,
+  balanceThrough, balanceBefore, debtsByPerson, DEBT_CAT,
 } from '../lib/money'
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2)
@@ -61,11 +61,11 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
 
   useEffect(() => { loadTx() }, [loadTx])
 
-  async function addTx(type, { amount, category, note }) {
+  async function addTx(type, { amount, category, note }, date = sel) {
     const row = {
       id: uid(),
       user_id: session.user.id,
-      date: sel,
+      date,
       type,
       amount,
       category,
@@ -74,6 +74,17 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
     setTx(p => [...p, mapTx(row)])                       // optimistic
     const { error } = await supabase.from('transactions').insert(row)
     if (error) { setErr(error.message); loadTx() }       // rollback
+  }
+
+  // Settle a hand-loan: borrowing repaid → expense, money lent returned → income.
+  async function settleDebt(person, net) {
+    const owe = net > 0
+    const amount = Math.abs(net)
+    const msg = owe
+      ? `${person} borcuna ${fmtAmount(amount)} ödəniş bu günə xərc kimi yazılsın?`
+      : `${person} qaytardığı ${fmtAmount(amount)} bu günə gəlir kimi yazılsın?`
+    if (!window.confirm(msg)) return
+    await addTx(owe ? 'out' : 'in', { amount, category: DEBT_CAT, note: person }, todayKey)
   }
 
   async function deleteTx(id) {
@@ -101,6 +112,11 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   const openingBalance = balanceBefore(tx, sel)          // seçilmiş günün açılış balansı
   const closingBalance = openingBalance + dayIn - dayOut // həmin günün sonu
   const currentBalance = balanceThrough(tx, todayKey)    // bu günə qədər ümumi balans
+
+  // Hand-loans (əl borcları)
+  const debts = debtsByPerson(tx)
+  const totalIOwe = sum(debts.filter(d => d.net > 0).map(d => ({ amount: d.net })))
+  const totalOwedToMe = sum(debts.filter(d => d.net < 0).map(d => ({ amount: -d.net })))
 
   // Monthly expense breakdown by category
   const catBreakdown = CATEGORIES.out
@@ -214,6 +230,24 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
             </div>
           </div>
 
+          {(totalIOwe > 0 || totalOwedToMe > 0) && (
+            <div className="stats-card">
+              {totalIOwe > 0 && (
+                <div className="stat">
+                  <span className="stat-num" style={{ color: '#ef4444' }}>{fmtAmount(totalIOwe)}</span>
+                  <span className="stat-lbl">Borcum</span>
+                </div>
+              )}
+              {totalIOwe > 0 && totalOwedToMe > 0 && <div className="stat-div" />}
+              {totalOwedToMe > 0 && (
+                <div className="stat">
+                  <span className="stat-num" style={{ color: '#10b981' }}>{fmtAmount(totalOwedToMe)}</span>
+                  <span className="stat-lbl">Mənə borc</span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="sidebar-user">
             <span className="sidebar-email" title={session.user.email}>
               {session.user.email}
@@ -288,6 +322,40 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
               </div>
             )}
           </section>
+
+          {/* ── Hand-loans ── */}
+          {debts.length > 0 && (
+            <section className="money-debts">
+              <h3 className="money-stats-heading">Borclar (əl borcları)</h3>
+              <div className="debt-list">
+                {debts.map(({ person, net }) => {
+                  const owe = net > 0
+                  return (
+                    <div className="debt-row" key={person}>
+                      <div className="debt-info">
+                        <span className="debt-person">{person}</span>
+                        <span className="debt-state">
+                          {owe ? 'Sən borclusan' : 'Sənə borcludur'}
+                        </span>
+                      </div>
+                      <span
+                        className="debt-amount"
+                        style={{ color: owe ? '#ef4444' : '#10b981' }}
+                      >
+                        {fmtAmount(Math.abs(net))}
+                      </span>
+                      <button
+                        className="debt-btn"
+                        onClick={() => settleDebt(person, net)}
+                      >
+                        {owe ? 'Ödə' : 'Alındı'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
         </main>
 
       </div>

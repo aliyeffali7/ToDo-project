@@ -936,6 +936,71 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 600;
 }
 
+/* Hand-loans */
+.money-debts {
+  margin-top: 22px;
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+}
+.debt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.debt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: var(--sh);
+}
+.debt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.debt-person {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--text1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.debt-state {
+  font-size: .66rem;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 600;
+}
+.debt-amount {
+  font-size: .95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.debt-btn {
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text1);
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: background .12s, border-color .12s;
+}
+.debt-btn:hover {
+  background: var(--bg);
+  border-color: var(--text3);
+}
+
 .cat-select {
   appearance: auto;
   cursor: pointer;

@@ -58,9 +58,28 @@ export const fmtFull = key =>
   })
 
 // Predefined categories per direction
+export const DEBT_CAT = 'Borc'
+
 export const CATEGORIES = {
-  in: ['Maaş', 'Servo', 'Sayt', 'Əlavə iş', 'Satış', 'Hədiyyə', 'Faiz', 'Digər'],
-  out: ['Yemək', 'Nəqliyyat', 'Kirayə', 'Kommunal', 'Alış-veriş', 'Proyekt', 'Əyləncə', 'Sağlamlıq', 'Təhsil', 'Digər'],
+  in: ['Maaş', 'Servo', 'Sayt', 'Əlavə iş', 'Satış', DEBT_CAT, 'Hədiyyə', 'Faiz', 'Digər'],
+  out: ['Yemək', 'Nəqliyyat', 'Kirayə', 'Kommunal', 'Alış-veriş', 'Proyekt', 'Kredit', DEBT_CAT, 'Əyləncə', 'Sağlamlıq', 'Təhsil', 'Digər'],
+}
+
+// Net hand-loan position per person, across all time.
+// Borrowing (type 'in', category 'Borc') → you owe more (net > 0).
+// Repaying / lending (type 'out', category 'Borc') → you owe less (net < 0 means they owe you).
+export function debtsByPerson(txs) {
+  const rows = txs.filter(t => t.category === DEBT_CAT && (t.note || '').trim())
+  const map = new Map()
+  for (const t of rows) {
+    const person = t.note.trim()
+    const delta = (t.type === 'in' ? 1 : -1) * Number(t.amount)
+    map.set(person, (map.get(person) || 0) + delta)
+  }
+  return [...map.entries()]
+    .map(([person, net]) => ({ person, net }))
+    .filter(d => Math.abs(d.net) > 0.005)
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
 }
 
 export const TYPE_CONFIG = {

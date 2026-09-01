@@ -94,7 +94,11 @@ export default function MoneyColumn({ type, entries, onAdd, onDelete }) {
           value={note}
           onChange={e => setNote(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && submit()}
-          placeholder="Qeyd (istəyə bağlı)"
+          placeholder={
+            category === 'Borc'
+              ? (type === 'in' ? 'Kimdən aldın? (ad)' : 'Kimə verdin? (ad)')
+              : 'Qeyd (istəyə bağlı)'
+          }
         />
       </div>
     </div>
