@@ -9,13 +9,18 @@ export default function MoneyColumn({ type, entries, onAdd, onDelete }) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState(cats[0])
   const [note, setNote] = useState('')
+  const [noteErr, setNoteErr] = useState(false)
+
+  const needsName = category === 'Borc'
 
   function submit() {
     const value = parseFloat(String(amount).replace(',', '.'))
     if (!value || value <= 0) return
+    if (needsName && !note.trim()) { setNoteErr(true); return }
     onAdd({ amount: value, category, note: note.trim() })
     setAmount('')
     setNote('')
+    setNoteErr(false)
     setCategory(cats[0])
   }
 
@@ -91,15 +96,21 @@ export default function MoneyColumn({ type, entries, onAdd, onDelete }) {
         </select>
         <input
           className="col-input"
+          style={noteErr ? { borderColor: '#ef4444', boxShadow: '0 0 0 3px rgba(239,68,68,.1)' } : undefined}
           value={note}
-          onChange={e => setNote(e.target.value)}
+          onChange={e => { setNote(e.target.value); if (noteErr) setNoteErr(false) }}
           onKeyDown={e => e.key === 'Enter' && submit()}
           placeholder={
-            category === 'Borc'
-              ? (type === 'in' ? 'Kimdən aldın? (ad)' : 'Kimə verdin? (ad)')
+            needsName
+              ? (type === 'in' ? 'Kimdən aldın? (ad) — vacib' : 'Kimə verdin? (ad) — vacib')
               : 'Qeyd (istəyə bağlı)'
           }
         />
+        {noteErr && (
+          <span style={{ fontSize: '.7rem', color: '#ef4444', fontWeight: 600 }}>
+            Borc üçün şəxsin adını yaz
+          </span>
+        )}
       </div>
     </div>
   )
