@@ -52,6 +52,9 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   const [debtPerson, setDebtPerson] = useState('')
   const [debtAmount, setDebtAmount] = useState('')
 
+  // Editable "Ödə/Alındı" amount per person — defaults to the remaining debt
+  const [payAmounts, setPayAmounts] = useState({})
+
   const loadTx = useCallback(async () => {
     if (!session) return
     const { data, error } = await supabase
@@ -82,16 +85,19 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
     if (error) { setErr(error.message); loadTx() }       // rollback
   }
 
-  // Settle a hand-loan: borrowing repaid → expense, money lent returned → income.
-  // This IS real cash moving today, so it counts toward the balance as usual.
-  async function settleDebt(person, net) {
+  // Settle a hand-loan (fully or partially): borrowing repaid → expense,
+  // money lent returned → income. This IS real cash moving today, so it
+  // counts toward the balance as usual.
+  async function settleDebt(person, net, amountStr) {
     const owe = net > 0
-    const amount = Math.abs(net)
+    const value = parseFloat(String(amountStr).replace(',', '.'))
+    if (!value || value <= 0) return
     const msg = owe
-      ? `${person} borcuna ${fmtAmount(amount)} ödəniş bu günə xərc kimi yazılsın?`
-      : `${person} qaytardığı ${fmtAmount(amount)} bu günə gəlir kimi yazılsın?`
+      ? `${person} borcuna ${fmtAmount(value)} ödəniş bu günə xərc kimi yazılsın?`
+      : `${person} tərəfindən qaytarılan ${fmtAmount(value)} bu günə gəlir kimi yazılsın?`
     if (!window.confirm(msg)) return
-    await addTx(owe ? 'out' : 'in', { amount, category: DEBT_CAT, note: person }, todayKey)
+    await addTx(owe ? 'out' : 'in', { amount: value, category: DEBT_CAT, note: person }, todayKey)
+    setPayAmounts(p => { const n = { ...p }; delete n[person]; return n })
   }
 
   // Register a pre-existing debt: only shows up in Borclar, never touches balance/stats.
@@ -386,6 +392,8 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
                 <div className="debt-list">
                   {debts.map(({ person, net }) => {
                     const owe = net > 0
+                    const remaining = Math.abs(net)
+                    const payVal = payAmounts[person] ?? String(remaining)
                     return (
                       <div className="debt-row" key={person}>
                         <div className="debt-info">
@@ -398,11 +406,21 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
                           className="debt-amount"
                           style={{ color: owe ? '#ef4444' : '#10b981' }}
                         >
-                          {fmtAmount(Math.abs(net))}
+                          {fmtAmount(remaining)}
                         </span>
+                        <input
+                          className="col-input debt-pay-input"
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          value={payVal}
+                          onChange={e => setPayAmounts(p => ({ ...p, [person]: e.target.value }))}
+                          onKeyDown={e => e.key === 'Enter' && settleDebt(person, net, payVal)}
+                        />
                         <button
                           className="debt-btn"
-                          onClick={() => settleDebt(person, net)}
+                          onClick={() => settleDebt(person, net, payVal)}
                         >
                           {owe ? 'Ödə' : 'Alındı'}
                         </button>

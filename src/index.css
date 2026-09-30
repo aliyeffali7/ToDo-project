@@ -984,6 +984,12 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 700;
   white-space: nowrap;
 }
+.debt-pay-input {
+  width: 90px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  font-size: .78rem;
+}
 .debt-btn {
   border: 1px solid var(--border2);
   background: var(--surface2);
@@ -1023,6 +1029,8 @@ button { font-family: inherit; cursor: pointer; }
 @media (max-width: 700px) {
   .debt-add-row { flex-wrap: wrap; }
   .debt-dir-select { flex: 1 1 100%; }
+  .debt-row { flex-wrap: wrap; }
+  .debt-pay-input { flex: 1 1 80px; width: auto; }
 }
 
 .cat-select {
