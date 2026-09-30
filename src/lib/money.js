@@ -9,7 +9,12 @@ export const parseKey = s => {
 }
 
 // Supabase → camelCase for the UI
-export const mapTx = t => ({ ...t, createdAt: t.created_at })
+export const mapTx = t => ({
+  ...t,
+  createdAt: t.created_at,
+  // Rows written before this column existed have no value → treat as counting.
+  countsTowardBalance: t.counts_toward_balance !== false,
+})
 
 // Monday-based week that contains dateKey → ['YYYY-MM-DD', 'YYYY-MM-DD']
 export function weekRange(dateKey) {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Wallet, CalendarDays, CheckSquare, X, LogOut } from 'lucide-react'
+import { Wallet, CalendarDays, CheckSquare, X, LogOut, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import Calendar from './Calendar'
 import MoneyColumn from './MoneyColumn'
@@ -47,6 +47,11 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   const [calOpen, setCalOpen] = useState(false)
   const [err, setErr]    = useState('')
 
+  // "Əvvəlcədən olan borc" mini-form — registers a debt without moving today's balance
+  const [debtDir, setDebtDir]       = useState('owe')   // 'owe' = mən borcluyam, 'owed' = mənə borcludur
+  const [debtPerson, setDebtPerson] = useState('')
+  const [debtAmount, setDebtAmount] = useState('')
+
   const loadTx = useCallback(async () => {
     if (!session) return
     const { data, error } = await supabase
@@ -61,7 +66,7 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
 
   useEffect(() => { loadTx() }, [loadTx])
 
-  async function addTx(type, { amount, category, note }, date = sel) {
+  async function addTx(type, { amount, category, note }, date = sel, countsBalance = true) {
     const row = {
       id: uid(),
       user_id: session.user.id,
@@ -70,6 +75,7 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
       amount,
       category,
       note,
+      counts_toward_balance: countsBalance,
     }
     setTx(p => [...p, mapTx(row)])                       // optimistic
     const { error } = await supabase.from('transactions').insert(row)
@@ -77,6 +83,7 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   }
 
   // Settle a hand-loan: borrowing repaid → expense, money lent returned → income.
+  // This IS real cash moving today, so it counts toward the balance as usual.
   async function settleDebt(person, net) {
     const owe = net > 0
     const amount = Math.abs(net)
@@ -87,6 +94,16 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
     await addTx(owe ? 'out' : 'in', { amount, category: DEBT_CAT, note: person }, todayKey)
   }
 
+  // Register a pre-existing debt: only shows up in Borclar, never touches balance/stats.
+  async function addPriorDebt() {
+    const value = parseFloat(String(debtAmount).replace(',', '.'))
+    if (!value || value <= 0 || !debtPerson.trim()) return
+    const type = debtDir === 'owe' ? 'in' : 'out'
+    await addTx(type, { amount: value, category: DEBT_CAT, note: debtPerson.trim() }, todayKey, false)
+    setDebtPerson('')
+    setDebtAmount('')
+  }
+
   async function deleteTx(id) {
     setTx(p => p.filter(t => t.id !== id))               // optimistic
     const { error } = await supabase.from('transactions').delete().eq('id', id)
@@ -94,11 +111,15 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   }
 
   // ── Derived ────────────────────────────────────────────────────────────
-  const dayTx  = type => tx.filter(t => t.date === sel && t.type === type)
+  // Prior-debt entries (added via the Borclar mini-form) are bookkeeping only —
+  // they're excluded here so they never move the balance or the stats.
+  const balanceTx = tx.filter(t => t.countsTowardBalance !== false)
+
+  const dayTx  = type => balanceTx.filter(t => t.date === sel && t.type === type)
   const datesWithTx = [...new Set(tx.map(t => t.date))]
 
-  const weekTx  = tx.filter(t => inWeek(t.date, sel))
-  const monthTx = tx.filter(t => inMonth(t.date, sel))
+  const weekTx  = balanceTx.filter(t => inWeek(t.date, sel))
+  const monthTx = balanceTx.filter(t => inMonth(t.date, sel))
 
   const weekIn   = sum(weekTx.filter(t => t.type === 'in'))
   const weekOut  = sum(weekTx.filter(t => t.type === 'out'))
@@ -109,11 +130,11 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
   const dayOut = sum(dayTx('out'))
 
   // Running balance — previous days carry over
-  const openingBalance = balanceBefore(tx, sel)          // seçilmiş günün açılış balansı
-  const closingBalance = openingBalance + dayIn - dayOut // həmin günün sonu
-  const currentBalance = balanceThrough(tx, todayKey)    // bu günə qədər ümumi balans
+  const openingBalance = balanceBefore(balanceTx, sel)          // seçilmiş günün açılış balansı
+  const closingBalance = openingBalance + dayIn - dayOut        // həmin günün sonu
+  const currentBalance = balanceThrough(balanceTx, todayKey)    // bu günə qədər ümumi balans
 
-  // Hand-loans (əl borcları)
+  // Hand-loans (əl borcları) — includes prior-debt entries, they're meant to show up here
   const debts = debtsByPerson(tx)
   const totalIOwe = sum(debts.filter(d => d.net > 0).map(d => ({ amount: d.net })))
   const totalOwedToMe = sum(debts.filter(d => d.net < 0).map(d => ({ amount: -d.net })))
@@ -324,38 +345,75 @@ export default function Money({ session, onSignOut, onSwitchToTasks }) {
           </section>
 
           {/* ── Hand-loans ── */}
-          {debts.length > 0 && (
-            <section className="money-debts">
-              <h3 className="money-stats-heading">Borclar (əl borcları)</h3>
-              <div className="debt-list">
-                {debts.map(({ person, net }) => {
-                  const owe = net > 0
-                  return (
-                    <div className="debt-row" key={person}>
-                      <div className="debt-info">
-                        <span className="debt-person">{person}</span>
-                        <span className="debt-state">
-                          {owe ? 'Sən borclusan' : 'Sənə borcludur'}
+          <section className="money-debts">
+            <h3 className="money-stats-heading">Borclar (əl borcları)</h3>
+
+            <div className="debt-add-row">
+              <select
+                className="col-input debt-dir-select"
+                value={debtDir}
+                onChange={e => setDebtDir(e.target.value)}
+              >
+                <option value="owe">Mən borcluyam</option>
+                <option value="owed">Mənə borcludur</option>
+              </select>
+              <input
+                className="col-input"
+                value={debtPerson}
+                onChange={e => setDebtPerson(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addPriorDebt()}
+                placeholder="Şəxsin adı"
+              />
+              <input
+                className="col-input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={debtAmount}
+                onChange={e => setDebtAmount(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addPriorDebt()}
+                placeholder="Məbləğ (₼)"
+              />
+              <button className="col-btn" style={{ background: '#64748b' }} onClick={addPriorDebt} aria-label="Borc əlavə et">
+                <Plus size={15} />
+              </button>
+            </div>
+            <p className="debt-add-hint">Əvvəlcədən olan borcları buradan əlavə et — balansa və statistikaya təsir etmir.</p>
+
+            {debts.length > 0
+              ? (
+                <div className="debt-list">
+                  {debts.map(({ person, net }) => {
+                    const owe = net > 0
+                    return (
+                      <div className="debt-row" key={person}>
+                        <div className="debt-info">
+                          <span className="debt-person">{person}</span>
+                          <span className="debt-state">
+                            {owe ? 'Sən borclusan' : 'Sənə borcludur'}
+                          </span>
+                        </div>
+                        <span
+                          className="debt-amount"
+                          style={{ color: owe ? '#ef4444' : '#10b981' }}
+                        >
+                          {fmtAmount(Math.abs(net))}
                         </span>
+                        <button
+                          className="debt-btn"
+                          onClick={() => settleDebt(person, net)}
+                        >
+                          {owe ? 'Ödə' : 'Alındı'}
+                        </button>
                       </div>
-                      <span
-                        className="debt-amount"
-                        style={{ color: owe ? '#ef4444' : '#10b981' }}
-                      >
-                        {fmtAmount(Math.abs(net))}
-                      </span>
-                      <button
-                        className="debt-btn"
-                        onClick={() => settleDebt(person, net)}
-                      >
-                        {owe ? 'Ödə' : 'Alındı'}
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+                    )
+                  })}
+                </div>
+              )
+              : <p className="col-empty">Borc yoxdur</p>
+            }
+          </section>
         </main>
 
       </div>

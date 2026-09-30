@@ -22,3 +22,9 @@ create policy "Users manage own transactions"
   for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
+
+-- Migration: "Əvvəlcədən olan borc" dəstəyi.
+-- Bu sütun false olanda yazı yalnız Borclar panelində görünür,
+-- balansa/statistikaya qarışmır. Mövcud sətirlər avtomatik true olur.
+alter table public.transactions
+  add column if not exists counts_toward_balance boolean not null default true;
